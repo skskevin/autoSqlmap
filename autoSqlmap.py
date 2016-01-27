@@ -6,13 +6,13 @@
 2.启动sqlmapapi.py:python sqlmapapi.py -s 
 """
 import requests
-import time,re
+import time,re,os
 import json,simplejson
 import threading,sys
 import Queue
+from optparse import OptionParser,OptionError
 
-
-TreadNum=5 #并发线程数
+TreadNum=20 #并发线程数
 
 class AutoSqli(object):
 
@@ -79,10 +79,9 @@ class AutoSqli(object):
         self.data = json.loads(
             requests.get(self.server + 'scan/' + self.taskid + '/data').text)['data']
         if len(self.data) == 0:
-            #print 'not injection\t'
-            pass
+            print self.target+' normal'
         else:
-            print self.target,'injection'
+            print self.target+' injection'
             date=time.strftime('%Y-%m-%d %H:%M:%S',time.localtime())
             f=open('result/injection.txt','a')
             rs = "================================================\n"
@@ -94,11 +93,7 @@ class AutoSqli(object):
 
     def option_set(self):
         headers = {'Content-Type': 'application/json'}
-        option = {"options": {
-                    "randomAgent": True,
-                    "tech":"BT"
-                    }
-                 }
+        option = options
         url = self.server + 'option/' + self.taskid + '/set'
         t = json.loads(
             requests.post(url, data=json.dumps(option), headers=headers).text)
@@ -128,7 +123,8 @@ class AutoSqli(object):
             else:
                 break
             #print time.time() - self.start_time
-            if time.time() - self.start_time > 500:
+            if time.time() - self.start_time > opts.timeout:
+                print self.target+' timeout'
                 error = True
                 self.scan_stop()
                 self.scan_kill()
@@ -152,6 +148,23 @@ class myThread(threading.Thread):
         
 if __name__ == '__main__':
     urls=[]
+    options={"options": {
+                    "randomAgent": True,
+                    "tech":"BUT",
+                    "batch":True
+                    }
+                 }
+    p=OptionParser()
+    p.add_option('-l','--level',default=1,dest='level',help="Level of tests to perform (1-5, default 1)")
+    p.add_option('-r','--risk',default=1,dest='risk',help="Risk of tests to perform (1-3, default 1)")
+    p.add_option('-t','--timeout',default=600,dest='timeout',help="Seconds to wait before timeout connection")
+
+    opts,args=p.parse_args()
+
+    options["options"]['level']=opts.level
+    options["options"]['risk']=opts.risk
+    
+
     with open("target.txt") as f:
         urls=f.readlines()
     
